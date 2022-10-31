@@ -7,29 +7,22 @@ class ExitCodes(int, Enum):
     UnhandledError = 2
 
 class Globals():
-    _projectDir: Path
-    _configDir: Path
-    _configFilePath: Path
+    _dbtProjectDir: Path
+    _dagsOutputDir: Path
 
     def __init__(self):
-        self._projectDir = None
-        self._configDir = None
+        self._dbtProjectDir = None
+        self._dagsOutputDir = None
 
-    def setProjectDir(self, projectDir:Path) -> None:
-        self._projectDir = projectDir
+    def setDBTProjectDir(self, dbtProjectDir:Path) -> None:
+        self._dbtProjectDir = dbtProjectDir
 
-    def getProjectDir(self) -> Path:
-        return self._projectDir
+    def getDBTProjectDir(self) -> Path:
+        return self._dbtProjectDir
 
-    def setConfigDir(self, configDir:Path) -> None:
-        self._configDir = configDir
+    def setDagsOutputDir(self, dagsOutputDir:Path) -> None:
+        self._dagsOutputDir = dagsOutputDir
 
-    def getConfigDir(self) -> Path:
-        return self._configDir
-
-    def setConfigFilePath(self, configFilePath:Path) -> None:
-        self._configFilePath = configFilePath
-
-    def getConfigFilePath(self) -> Path:
-        return self._configFilePath
+    def getDagsOutputDir(self) -> Path:
+        return self._dagsOutputDir
 

@@ -25,29 +25,6 @@ class CustomFormatter(logging.Formatter):
         formatter = logging.Formatter(log_fmt)
         return formatter.format(record)
 
-class ColorFormatter(logging.Formatter):
-    # Change this dictionary to suit your coloring needs!
-    COLORS = {
-        "WARNING": Fore.YELLOW,
-        "ERROR": Fore.RED,
-        "DEBUG": Fore.BLUE,
-        "INFO": Fore.GREEN,
-        "CRITICAL": Fore.WHITE + Back.RED
-    }
-
-    def format(self, record):
-        color = self.COLORS.get(record.levelname, "")
-        if color:
-            dt = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
-            # record.args = dt
-            # print(record.args)
-            # record.asctime = color + record.asctime
-            record.name = color + record.name
-            record.levelname = color + record.levelname
-            # record.msg = color + record.msg
-            record.msg = f"{color}{dt}: [{record.levelname}] {record.msg}"
-        return logging.Formatter.format(self, record)
-
 class Logger():
     def initialize(self, env='dev'):
         logger = logging.getLogger(LOGGER_ROOT_NAME)

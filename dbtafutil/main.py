@@ -160,7 +160,7 @@ def _build_gendag_subparser(subparsers, base_subparser):
         Specify the models to select for generation of dags.
         Mutually exclusive with '--select' (or '-s')
         """,
-        metavar="SELECTOR",
+        metavar="MODEL",
         required=False,
     )
 
@@ -173,7 +173,7 @@ def _build_gendag_subparser(subparsers, base_subparser):
         Specify the models to select for generation of dags.
         Mutually exclusive with '--models' (or '-m')
         """,
-        metavar="SELECTOR",
+        metavar="MODEL",
         required=False,
     )    
 
@@ -186,36 +186,44 @@ def _build_gendag_subparser(subparsers, base_subparser):
         Specify the tags assigned to models that should form 
         the basis for generation of dags.
         """,
-        metavar="SELECTOR",
+        metavar="TAG",
         required=False,
-    )    
-    # sub.add_argument(
-    #     "-sm",
-    #     "--skip-metadata-setup",
-    #     dest="skip_metadata_setup",
-    #     action="store_true",
-    #     help="""
-    #     Skips database metadata setup, when this flag is included
-    #     """,
-    # )
-    # sub.add_argument(
-    #     "-f",
-    #     "--force-metadata-refresh",
-    #     dest="force_metadata_refresh",
-    #     action="store_true",
-    #     help="""
-    #     Forces Metadata Refresh, resulting in dropping and recreating metadata schema and tables 
-    #     """,
-    # )
-    # sub.add_argument(
-    #     "-s",
-    #     "--sample-metadata",
-    #     dest="insert_sample_metadata",
-    #     action="store_true",
-    #     help="""
-    #     Inserts Sample Metadata 
-    #     """,
-    # )
+    )  
+
+    sub.add_argument(
+        "-st",
+        "--skip-tests",
+        dest="skip_tests",
+        action="store_true",
+        help="""
+        Skips database metadata setup, when this flag is included
+        """,
+    )
+
+    sub.add_argument(
+        "-o",
+        "--dags-output-folder",
+        dest="dags_output_folder",
+        help="""
+        Specify absolute path of output folder where  
+        dags should be generated.
+        """,
+        metavar="FOLDER",
+        required=False,
+    )  
+
+    sub.add_argument(
+        "-p",
+        "--dbt-project-folder",
+        dest="dbt_project_folder",
+        help="""
+        Specify absolute path of dbt project folder  
+        if different from current location.
+        """,
+        metavar="FOLDER",
+        required=False,
+    )  
+
     sub.set_defaults(cls=genDagCommand.GenDagTask, which="gendag", rpc_method=None)
     return sub
 
