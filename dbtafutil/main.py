@@ -6,7 +6,7 @@ from dbtafutil.utils.utils import ExitCodes   ##TBC
 import dbtafutil.commands.gendag as genDagCommand
 
 VERSION = '1.0.1'
-logger = Logger().initialize()
+logger = Logger().initialize('test')
 
 class DAUVersion(argparse.Action):
     """This is very similar to the built-in argparse._Version action,
@@ -86,7 +86,7 @@ def main(args=None):
     if args is None:
         args = sys.argv[1:]    
 
-    logger.info('dbfutil Process invoked..')
+    # logger.info('dbfutil Process invoked..')
 
 
     try:
@@ -105,6 +105,7 @@ def main(args=None):
         exit_code = e.code
 
     except BaseException as e:
+        logger.error(f'Error: {e}')
         exit_code = ExitCodes.UnhandledError.value
 
     sys.exit(exit_code)

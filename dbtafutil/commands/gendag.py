@@ -64,6 +64,10 @@ class GenDagTask(BaseTask):
         Validation # 4
         Check that dbt_project.yml file exists in dbt project folder
         """
+        dbt_project_file = self.globals.getDBTProjectDir().joinpath('dbt_project.yml')
+        if not dbt_project_file.exists():
+            logger.error(f'Not in a dbt project folder. Missing dbt_project.yml file!')
+            return 1
 
         return 0
 
