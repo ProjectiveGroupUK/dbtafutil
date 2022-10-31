@@ -27,7 +27,7 @@ with open(os.path.join(this_directory, "README.md")) as f:
     long_description = f.read()
 
 
-package_name = "dbt2AFDags"
+package_name = "dbtafutil"
 package_version = "1.0.1"
 description = """dbtafutil is dbt to Airflow Utility package.\
 It can be used to generate Airflow Dags,\
@@ -54,7 +54,7 @@ setup(
         ],
     },
     install_requires=[
-        
+        "colorama==0.4.5",
     ],
     zip_safe=False,
     classifiers=[
