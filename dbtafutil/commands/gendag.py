@@ -1,15 +1,18 @@
+import logging
+import shutil
+from pathlib import Path
+
 from dbtafutil.base import BaseTask
 from dbtafutil.utils.logger import Logger
-import logging
-from pathlib import Path
 from dbtafutil.utils.utils import Globals
-
+from dbtafutil.helper.dbt_manifest_util import DbtManifestUtil
+from dbtafutil.helper.generate_dags import genrateModelsDags, generateTagsDags
 
 logger = logging.getLogger(Logger.getRootLoggerName())
+globals = Globals()
+dbtManifestUtil = DbtManifestUtil()
 
 class GenDagTask(BaseTask):
-
-    globals = Globals()
 
     def validateArgs(self) -> int:
         logger.debug('Inside validateArgs')
@@ -39,11 +42,11 @@ class GenDagTask(BaseTask):
                     logger.error(f'Dags output folder specified ({self.args.dags_output_folder}), does not exists!')
                     return 1
                 else:
-                    self.globals.setDagsOutputDir(dagsOutputDir=parentPath)    
+                    globals.setDagsOutputDir(dagsOutputDir=parentPath)    
             else:
-                self.globals.setDagsOutputDir(dagsOutputDir=path)
+                globals.setDagsOutputDir(dagsOutputDir=path)
         else:
-            self.globals.setDagsOutputDir(dagsOutputDir=Path.cwd().joinpath('airflow_dags'))
+            globals.setDagsOutputDir(dagsOutputDir=Path.cwd().joinpath('airflow_dags'))
         
         """
         Validation # 3
@@ -56,15 +59,15 @@ class GenDagTask(BaseTask):
                 logger.error(f'DBT project folder specified ({self.args.dbt_project_folder}), does not exists!')
                 return 1
             else:
-                self.globals.setDBTProjectDir(dbtProjectDir=path)    
+                globals.setDBTProjectDir(dbtProjectDir=path)    
         else:
-            self.globals.setDBTProjectDir(dbtProjectDir=Path.cwd())
+            globals.setDBTProjectDir(dbtProjectDir=Path.cwd())
 
         """
         Validation # 4
         Check that dbt_project.yml file exists in dbt project folder
         """
-        dbt_project_file = self.globals.getDBTProjectDir().joinpath('dbt_project.yml')
+        dbt_project_file = globals.getDBTProjectDir().joinpath('dbt_project.yml')
         if not dbt_project_file.exists():
             logger.error(f'Not in a dbt project folder. Missing dbt_project.yml file!')
             return 1
@@ -87,8 +90,70 @@ class GenDagTask(BaseTask):
         else:
             raise Exception('Validations failed, aborting process!')
 
-        logger.info(f'Dags output folder: {self.globals.getDagsOutputDir()}')
-        logger.info(f'DBT Project folder: {self.globals.getDBTProjectDir()}')
+        logger.info(f'Dags output folder: {globals.getDagsOutputDir()}')
+        logger.info(f'DBT Project folder: {globals.getDBTProjectDir()}')
+
+        # if both models as well as select have been passed as arguments, then club them together
+        modelsList = []
+        if self.args.models is not None:
+            modelsList = self.args.models
+
+        if self.args.select is not None:
+            for modelName in self.args.select: modelsList.append(modelName)
+
+        # Now also do a dedup of the list, in case same model names have been passed multiple times
+        modelsList = list(set(modelsList))
+        logger.debug(f'modelsList: {modelsList}')
+
+        # Also dedup tag list if any passed
+        tagsList = []
+        if self.args.tags is not None:
+            tagsList = list(set(self.args.tags))
+
+        logger.debug(f'tagsList: {tagsList}')
+
+        """
+        Now that we have passed the validations etc., run the task to generate project wide manifest file
+        But before running any task, first check that dbt executable works
+        """
+        logger.info('Checking dbt version:')
+        ret = dbtManifestUtil.checkDbtVersion()
+        if ret != 0:
+            raise Exception('Problem with running dbt executable')
+        
+        # Create dag folder if it doesn't already exists
+        fldr = globals.getDagsOutputDir()
+        if not fldr.exists():
+            Path.mkdir(fldr)
+            logger.info(f'Created Dags output folder: {fldr} ')
+        
+        # also create dbt_resources folder inside dag folder, where manifest file needs to be copied over
+        fldr = globals.getUtilResourcesDir()
+        if not fldr.exists():
+            Path.mkdir(fldr)
+
+        logger.info('Now generating dbt project Manifest file:')
+        ret = dbtManifestUtil.generateManifestFile()
+        if ret != 0:
+            raise Exception('Problem with generating dbt project Manifest')        
+
+        try:
+            shutil.copyfile(globals.getDBTManifestFile(),globals.getUtilManifestFile())
+            logger.info('Copied dbt manifest file to utility resources folder')
+        except Exception as e:
+            raise Exception(e)
+
+        # if models have been passed as argument, call it's function to generate dags for those models
+        if len(modelsList) > 0:
+            logger.info('Starting to generate DAGs based on models')
+            genrateModelsDags(modelsList=modelsList)
+            logger.info('Completed generating DAGs for models')
+
+        # if tags have been passed as argument, call it's function to generate dags for those tags
+        if len(tagsList) > 0:
+            logger.info('Starting to generate DAGs based on models')
+            generateTagsDags(tagsList=tagsList)
+            logger.info('Completed generating DAGs for tags')
 
     def interpret_results(self, results):
         return True

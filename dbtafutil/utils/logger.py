@@ -10,7 +10,7 @@ class CustomFormatter(logging.Formatter):
 
     formatDebug = "%(asctime)s [%(levelname)s]: %(name)s - %(message)s (%(filename)s:%(lineno)d)"
     formatInfo = "%(asctime)s [%(levelname)s]: %(message)s"
-    formatError = "%(asctime)s [%(levelname)s]: %(message)s (%(filename)s:%(lineno)d)"
+    formatError = "%(asctime)s [%(levelname)s]: %(name)s - %(message)s (%(filename)s:%(lineno)d)"
 
     FORMATS = {
         logging.DEBUG: Fore.WHITE + formatDebug + Fore.RESET,
