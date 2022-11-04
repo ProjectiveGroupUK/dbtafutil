@@ -17,7 +17,7 @@ def genrateModelsDags (modelsList:list, **kwargs: Any) -> None:
     """
     for model in modelsList:
         logger.info(f"Generating dag for model: {model}")
-        modelName = model.strip().lower()
+        modelName = model.strip() ##.lower()
         generateDag(inputType="model", identifierName=modelName, **kwargs)
 
     return
@@ -30,6 +30,6 @@ def generateTagsDags (tagsList:list, **kwargs: Any) -> None:
     """
     for tag in tagsList:
         logger.info(f"Generating dag for tag: {tag}")
-        tagName = tag.strip().lower()
+        tagName = tag.strip()  ##.lower()
         generateDag(inputType="tag", identifierName=tagName, **kwargs)
     return
