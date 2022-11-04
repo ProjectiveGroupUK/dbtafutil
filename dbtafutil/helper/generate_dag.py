@@ -42,6 +42,7 @@ class DbtChecklists:
         res = item in self.model_checklist + self.upstream_checklist
         return res
 
+
 def checkNodeInManifest(
     nodeName: str,
     manifestJson: Dict[str, Any],
@@ -132,7 +133,7 @@ def getTagRunTasks(
     # Repeat the previous step for nodes upstream of this one
     # We add relevant nodes to our task list, and build Airflow dependency strings
     upstreamNode: str
-    upstreamCount:int = 0
+    # upstreamCount: int = 0
     for upstreamNode in set(manifestJson["nodes"][nodeName]["depends_on"]["nodes"]):
         if checkNodeInManifest(
             nodeName=upstreamNode,
@@ -141,14 +142,20 @@ def getTagRunTasks(
         ):
             logger.info(f"Building airflow task for {upstreamNode}")
             upstream_task_id = upstreamNode.split(".")[-1]
-            upstreamCount += 1
+
+            # if item is in list already (as just a base remove it) as it has dependencies.
+            if upstream_task_id in checklists.dbt_tasks_execution:
+                checklists.dbt_tasks_execution.remove(upstream_task_id)
+
+            # upstreamCount += 1
 
             # Build the airflow dependency string and add it to the execution list
             checklists.dbt_tasks_execution.append(f"{upstream_task_id} >> {nodeTaskId}")
 
-    if upstreamCount == 0:
+    # if upstreamCount == 0:
+    #     checklists.dbt_tasks_execution.append(f"{nodeTaskId}")
+    if not any(nodeTaskId in nodes for nodes in checklists.dbt_tasks_execution):
         checklists.dbt_tasks_execution.append(f"{nodeTaskId}")
-
     return checklists
 
 
@@ -170,7 +177,7 @@ def generateDag(inputType: str, identifierName: str, **kwargs: Any):
     logger.debug("Inside genrateModelsDags")
     logger.debug(f"inputType = {inputType}")
     logger.debug(f"identifierName = {identifierName}")
-    logger.debug(f'kwargs = {kwargs}')
+    logger.debug(f"kwargs = {kwargs}")
     # Type checking
     if inputType not in ("model", "tag"):
         raise TypeError("Incorrect value for input type")
@@ -199,7 +206,7 @@ def generateDag(inputType: str, identifierName: str, **kwargs: Any):
                     nodeName=nodeName,
                 )
 
-            elif (nodeType == "test") and (not kwargs['skip_tests']):
+            elif (nodeType == "test") and (not kwargs["skip_tests"]):
                 for upstreamNode in set(
                     manifestJson["nodes"][nodeName]["depends_on"]["nodes"]
                 ):
@@ -221,13 +228,20 @@ def generateDag(inputType: str, identifierName: str, **kwargs: Any):
     [dbt_tasks.append(x) for x in checklists.dbt_tasks if x not in dbt_tasks]
 
     dbt_tasks_execution = []
-    [dbt_tasks_execution.append(x) for x in checklists.dbt_tasks_execution if x not in dbt_tasks_execution]
+    [
+        dbt_tasks_execution.append(x)
+        for x in checklists.dbt_tasks_execution
+        if x not in dbt_tasks_execution
+    ]
 
     if len(dbt_tasks) > 0:
-        outputFilePath = Path(os.path.join(outputDir, f"{inputType}_{identifierName}.py"))
+        outputFilePath = Path(
+            os.path.join(outputDir, f"{inputType}_{identifierName}.py")
+        )
 
         tasksConfig = {
-            **{ "dag_name": identifierName,
+            **{
+                "dag_name": identifierName,
                 "schedule_interval": "None",
                 "catchup": False,
                 "default_args": {"start_date": "datetime(2022, 1, 1)"},
@@ -239,6 +253,8 @@ def generateDag(inputType: str, identifierName: str, **kwargs: Any):
         with open(outputFilePath, "w") as f:
             f.write(rendered_jinja_template)
     else:
-        logger.error(f'No dbt models/tests identified for {inputType}::{identifierName}')
+        logger.error(
+            f"No dbt models/tests identified for {inputType}::{identifierName}"
+        )
 
     return
