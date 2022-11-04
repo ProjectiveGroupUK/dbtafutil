@@ -166,10 +166,11 @@ def getTestTasks(checklists: DbtChecklists, nodeName: str, baseNode: str):
     return checklists
 
 
-def generateDag(inputType: str, identifierName: str):
+def generateDag(inputType: str, identifierName: str, **kwargs: Any):
     logger.debug("Inside genrateModelsDags")
     logger.debug(f"inputType = {inputType}")
     logger.debug(f"identifierName = {identifierName}")
+    logger.debug(f'kwargs = {kwargs}')
     # Type checking
     if inputType not in ("model", "tag"):
         raise TypeError("Incorrect value for input type")
@@ -186,8 +187,6 @@ def generateDag(inputType: str, identifierName: str):
     if inputType == "tag":
         for nodeName in manifestJson["nodes"].keys():
             nodeType = nodeName.split(".")[0]
-            print(nodeName)
-            print(nodeType)
             if checkNodeInManifest(
                 manifestJson=manifestJson,
                 tagName=identifierName,
@@ -200,7 +199,7 @@ def generateDag(inputType: str, identifierName: str):
                     nodeName=nodeName,
                 )
 
-            elif nodeType == "test":
+            elif (nodeType == "test") and (not kwargs['skip_tests']):
                 for upstreamNode in set(
                     manifestJson["nodes"][nodeName]["depends_on"]["nodes"]
                 ):

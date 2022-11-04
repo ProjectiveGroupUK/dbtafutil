@@ -143,17 +143,18 @@ class GenDagTask(BaseTask):
         except Exception as e:
             raise Exception(e)
 
+        kwargsDict = {'skip_tests': self.args.skip_tests}
         # if models have been passed as argument, call it's function to generate dags for those models
         if len(modelsList) > 0:
             logger.info('Starting to generate DAGs based on models')
-            genrateModelsDags(modelsList=modelsList)
-            logger.info('Completed generating DAGs for models')
+            genrateModelsDags(modelsList=modelsList, **kwargsDict)
+            logger.info('Dag generation process completed...')
 
         # if tags have been passed as argument, call it's function to generate dags for those tags
         if len(tagsList) > 0:
             logger.info('Starting to generate DAGs based on models')
-            generateTagsDags(tagsList=tagsList)
-            logger.info('Completed generating DAGs for tags')
+            generateTagsDags(tagsList=tagsList, **kwargsDict)
+            logger.info('Dag generation process completed...')
 
     def interpret_results(self, results):
         return True
