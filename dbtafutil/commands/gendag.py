@@ -128,7 +128,7 @@ class GenDagTask(BaseTask):
             logger.info(f'Created Dags output folder: {fldr} ')
         
         # also create dbt_resources folder inside dag folder, where manifest file needs to be copied over
-        fldr = globals.getUtilResourcesDir()
+        fldr = globals.getUtilResourcesDir().joinpath('airflow_dags')
         if not fldr.exists():
             Path.mkdir(fldr)
 
@@ -151,8 +151,8 @@ class GenDagTask(BaseTask):
 
         # if tags have been passed as argument, call it's function to generate dags for those tags
         if len(tagsList) > 0:
-            logger.info('Starting to generate DAGs based on models')
-            generateTagsDags(tagsList=tagsList)
+            logger.info('Starting to generate DAGs based on tags')
+            generateTagsDags(tagsList=tagsList, manifestPath=globals.getUtilManifestFile(), dagsFolder=fldr)
             logger.info('Completed generating DAGs for tags')
 
     def interpret_results(self, results):
