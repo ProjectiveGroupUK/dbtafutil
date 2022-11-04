@@ -6,7 +6,7 @@ from dbtafutil.utils.utils import ExitCodes   ##TBC
 import dbtafutil.commands.gendag as genDagCommand
 
 VERSION = '1.0.1'
-logger = Logger().initialize('test')
+logger = Logger().initialize('dev')
 
 class DAUVersion(argparse.Action):
     """This is very similar to the built-in argparse._Version action,

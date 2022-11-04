@@ -1,0 +1,102 @@
+# DAG dynamically generated using the generator python script
+# written by Nitin Garg from DTSQUARED
+#
+# Generator is used to generate starter DAG, feel free to make
+# any further modification as necessary
+#
+# Don't forget to override Version Number on top of this script
+# if you are making modifications manually and don't want
+# it to be overwritten by generator accidentally
+{#- <== Imports section starts ==> #}
+import os
+from airflow.decorators import dag, task
+from airflow.utils.task_group import TaskGroup
+from airflow.operators.dummy_operator import DummyOperator
+from datetime import datetime
+from airflow.models import Variable
+from airflow_dbt.operators.dbt_operator import DbtRunOperator, DbtTestOperator
+from plugins.event_bridge_plugin import send_failure_message, send_success_message
+from airflow.utils.trigger_rule import TriggerRule
+{#- <== Imports section ends ==> #}
+
+{# <== Top level variables section starts ==> #}
+{%- if variables is defined %}
+{%- for var in variables %}
+{{ var['key'] }}={{ var['value'] }}
+{%- endfor %}
+{%- endif %}
+{#- <== Top level variables section ends ==> #}
+
+default_args = {
+{%- for k, v in default_args.items() %}
+    "{{ k }}": {{ v }},
+{%- endfor %}
+}
+
+@dag(
+schedule_interval={%- if schedule_interval == "None" -%}
+{{ schedule_interval }}
+{%- else -%}
+'{{ schedule_interval }}'
+{%- endif -%},
+default_args=default_args,
+catchup={{ catchup | default(False) }},
+{% if tags is defined and tags != "" -%}
+tags={{ tags }},
+{%- endif -%}
+{% if description is defined and description != "" -%}
+description='{{ description }}',
+{%- endif -%}
+{% if template_searchpath is defined and template_searchpath != "" -%}
+template_searchpath='{{ template_searchpath }}',
+{%- endif -%}
+)
+def {{ dag_name.lower() }}():
+
+    start = DummyOperator(
+    task_id="start",
+    )
+    {% if tasks | length > 0 -%}
+    with TaskGroup("task_group_{{ dag_name.lower() }}") as task_group_{{ dag_name.lower() }}:
+        {% for task in tasks %}
+            {%- if task['task_type'].upper() == 'RUN' %}
+        {{ task['task_id'] }} = DbtRunOperator(
+            task_id="{{ task['task_id'] }}",
+            dbt_bin=f"{os.path.dirname(os.path.dirname(os.path.abspath(__file__)))}/.local/bin/dbt",
+            profiles_dir=f"{os.path.dirname(os.path.abspath(__file__))}/dbt/",
+            dir=f"{os.path.dirname(os.path.abspath(__file__))}/dbt/",
+            target="dev",
+            models="{{ task['dbt_model'] }}"
+            )
+            {%- elif task['task_type'].upper() == 'TEST' %}
+        {{ task['task_id'] }} = DbtTestOperator(
+            task_id="{{ task['task_id'] }}",
+            profiles_dir=f"{os.path.dirname(os.path.abspath(__file__))}/dbt/",
+            dir=f"{os.path.dirname(os.path.abspath(__file__))}/dbt/",
+            target="dev",
+            models="{{ task['dbt_model'] }}"
+            )
+            {%- endif %}
+        {% endfor %}
+        {%- for task_execution in tasks_execution %}
+        {{ task_execution }}
+        {%- endfor %}
+    {% endif %}
+    notify_success = DummyOperator(task_id='notify_success', trigger_rule=TriggerRule.ALL_SUCCESS,
+                   on_success_callback=send_success_message)
+
+    notify_failure = DummyOperator(task_id='notify_failure', trigger_rule=TriggerRule.ONE_FAILED,
+                   on_success_callback=send_failure_message)
+
+    end = DummyOperator(
+    task_id="end",
+    trigger_rule=TriggerRule.ALL_DONE
+    )
+
+    {% if tasks | length > 0 -%}
+    start >> task_group_{{ dag_name.lower() }} >> [notify_success, notify_failure] >> end
+    {% else -%}
+    start >> [notify_success, notify_failure] >> end
+    {% endif %}
+
+{{ dag_name.lower() }}_dag = {{ dag_name.lower() }}()

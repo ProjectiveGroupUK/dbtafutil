@@ -55,6 +55,7 @@ setup(
     },
     install_requires=[
         "colorama==0.4.5",
+        "Jinja2==3.1.2"
     ],
     zip_safe=False,
     classifiers=[
