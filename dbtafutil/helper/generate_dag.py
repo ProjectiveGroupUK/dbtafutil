@@ -216,9 +216,9 @@ def getModelRunTasks(
 ):
     logger.info(f"Building airflow tasks for {nodeName}") 
    
-    taskDict, nodeTaskId = buildTaskDict(nodeName=nodeName, taskType="run")
-    checklists.dbt_tasks.append(taskDict)
-    checklists.model_checklist.append(nodeName)
+    #taskDict, nodeTaskId = buildTaskDict(nodeName=nodeName, taskType="run")
+    #checklists.dbt_tasks.append(taskDict)
+    #checklists.model_checklist.append(nodeName)
 
     # Repeat the previous step for nodes upstream of this one
     # We add relevant nodes to our task list, and build Airflow dependency strings
@@ -293,13 +293,23 @@ def getModelRunTasks(
         print (all)        
         upstreamNode: str
         # upstreamCount: int = 0
+        taskDict, nodeTaskId = buildTaskDict(nodeName=model, taskType="run")
+        checklists.dbt_tasks.append(taskDict)
+        checklists.model_checklist.append(model)
         for upstreamNode in set(manifestJson["nodes"][model]["depends_on"]["nodes"]):
             #Fizlar you are here!
-            #if checkNodeInManifest(
-            #    nodeName=upstreamNode,
-            #    manifestJson=manifestJson,
-            #    modelName=
-        #):
+            #
+            # 
+            if not  checkNodeInManifest(
+                nodeName=upstreamNode,
+                manifestJson=manifestJson,
+            ):
+                print("checked node failed")
+                pass
+            else:
+                print ("check passed")
+
+
             print("upstream models")
             print(upstreamNode)
             if 1==1:
