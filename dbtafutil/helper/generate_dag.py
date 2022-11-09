@@ -56,9 +56,9 @@ def checkNodeInManifest(
     logger.info(f"modelName: {modelName}")
     """Check if a node in the manifest file should be included in the set."""
     # Only include model nodes
-    rtn_val:bool = False
+    rtn_val:bool = True
     if nodeName.split(".")[0] != "model":
-        return rtn_val
+        return False
     try:
         nodes = manifestJson["nodes"]
     except KeyError as e:
@@ -69,38 +69,17 @@ def checkNodeInManifest(
         raise KeyError(
             f"Given node name {nodeName} is not present in manifest json nodes block"
         ) from e
-    if modelName:
-        #enter model logic
-        print ("in check model name part")
-        print(nodeName.split(".")[-1])
-        try:
-            if modelName == nodeName: #modelName == nodeName.split(".")[-1]:
-                print("returning true")
-                #if modelName return true 
-                rtn_val = True
-                print(rtn_val)
-                return rtn_val
-
-        except KeyError as e:
-            raise KeyError(
-                f"Given node name {nodeName} is not present in manifest json nodes block"
-            ) from e
     if tagName:
-        print("in tag part")
-        print(tagName)
-        print("try")
         try:
             tags = node["tags"]
-            print(tags)
-            if tags:
-                rtn_val= True
         except KeyError as e:
             raise KeyError(
                 f"The tags section of the `{nodeName}` node could not be found in manifest file."
             ) from e
+        
    
         # Only include if the tag is specified in the configuration
-        return rtn_val
+    return rtn_val
 
 
 def loadManifest():
@@ -227,91 +206,141 @@ def getModelRunTasks(
     #If both then go to the lowest model and run through that.
     
     # Do we need to get Parents of Model?
-    baseModels=set([])
-    if modelParents:
-        print("We need to parents of Model")
-        print("base nodes")
-        print(baseModels)   
-        print(modelName)
-        print(nodeName)
-        print(modelParents)
-        print(modelChildren)
-        print(modelParentsDegree)
-        print(modelChildrenDegree)
-       
+    usModels=set([]) #upstream models.
+    if modelParents:       
         n=1 
         nodeToCheck:list=nodeName.split()
         while n > 0:
-            print("checking parent node!:")
             if not nodeToCheck:
                 n=0
             
             for node in nodeToCheck:
-                print (nodeToCheck)
-                print(node)
-                print(node.split(".")[0])
                 if node.split(".")[0] == "model":
-                    print("model")
                     parentNode= manifestJson["parent_map"][node]
-                    print(parentNode)
                     for parent in parentNode:
                         if parent.split(".")[0] == "model":
-                            print("this is parent")
-                            print(parent)
-                            print(parent.split(".")[0])
-                            baseModels.add(parent)
+                            usModels.add(parent)
                     nodeToCheck=parentNode
                 else:
-                    print("else")
-                    n=0
-                    #baseModels.add(prevNode)
-            
+                    n=0   
 
-    print("base nodes")
-    print(baseModels)   
-    print(modelName)
-    print(nodeName)
-    print(modelParents)
-    print(modelChildren)
-    print(modelParentsDegree)
-    print(modelChildrenDegree)
-    print(type(list(baseModels)))
+
+    # Do we need to get Children of Model?
+    ###we are here fizlar is it because it is a shared model?
+    
+    dsModels=set([]) #downstream models.
+    if modelChildren:       
+        n=1 
+        nodeToCheck:list=nodeName.split()
+        while n > 0:
+            if not nodeToCheck:
+                n=0
+            
+            for node in nodeToCheck:                
+                if node.split(".")[0] == "model":
+                    childrenNode= manifestJson["child_map"][node]
+
+                    for children in childrenNode:
+                        if children.split(".")[0] == "model":
+                            dsModels.add(children)
+                    nodeToCheck=childrenNode
+                else:
+                    n=0          
     
 
-    if not len(baseModels):
-        baseModels=nodeName
+    if not len(dsModels):
+        dsModels=nodeName
+    else:
+        dsModels=list(dsModels)
+        #add to beginning of list
+        dsModels.insert(0,nodeName)
+
+
+
+    for dsmodel in dsModels:
+        logger.info(f"Building airflow tasks for {dsmodel}")
+        taskDict, nodeTaskId = buildTaskDict(nodeName=dsmodel, taskType="run")
+        checklists.dbt_tasks.append(taskDict)
+        checklists.model_checklist.append(dsmodel)
+
+        # Repeat the previous step for nodes upstream of this one
+        # We add relevant nodes to our task list, and build Airflow dependency strings
+        upstreamNode: str
+    
+
+        for upstreamNode in set(manifestJson["nodes"][dsmodel]["depends_on"]["nodes"]):
+            if checkNodeInManifest(
+                nodeName=upstreamNode,
+                manifestJson=manifestJson,
+            ):                
+                #Need to check if upstream task is for this model path 
+                if upstreamNode not in dsModels:
+                    #iterate
+                    continue
+
+                logger.info(f"Building airflow task for {upstreamNode}")
+                upstream_task_id = upstreamNode.split(".")[-1]
+
+                # if item is in list already (as just a base remove it) as it has dependencies.
+                if upstream_task_id in checklists.dbt_tasks_execution:
+                    checklists.dbt_tasks_execution.remove(upstream_task_id)
+
+            # upstreamCount += 1
+
+                # Build the airflow dependency string and add it to the execution list
+                checklists.dbt_tasks_execution.append(f"{upstream_task_id} >> {nodeTaskId}")
+                                               
+
+    # if upstreamCount == 0:
+    #     checklists.dbt_tasks_execution.append(f"{nodeTaskId}")
+        if not any(nodeTaskId in nodes for nodes in checklists.dbt_tasks_execution):
+            checklists.dbt_tasks_execution.append(f"{nodeTaskId}")
+    
+    return checklists
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    #####this is end of new stuff
+    exit(0)
+
+
+    if not len(usModels):
+        usModels=nodeName
         model=nodeName
     else:
-        baseModels=list(baseModels)
+        usModels=list(usModels)
         #add to beginning of list
-        baseModels.insert(0,nodeName)
+        usModels.insert(0,nodeName)
         model=nodeName
 
     
-    for all in baseModels:
-        print("modeltocheck")
-        print (all)        
+    for all in usModels:     
         upstreamNode: str
         # upstreamCount: int = 0
         taskDict, nodeTaskId = buildTaskDict(nodeName=model, taskType="run")
         checklists.dbt_tasks.append(taskDict)
         checklists.model_checklist.append(model)
         for upstreamNode in set(manifestJson["nodes"][model]["depends_on"]["nodes"]):
-            #Fizlar you are here!
-            #
-            # 
             if not  checkNodeInManifest(
                 nodeName=upstreamNode,
                 manifestJson=manifestJson,
             ):
-                print("checked node failed")
-                pass
-            else:
-                print ("check passed")
+                continue
 
-
-            print("upstream models")
-            print(upstreamNode)
             if 1==1:
                 logger.info(f"Building airflow task for {upstreamNode}")
                 upstream_task_id = upstreamNode.split(".")[-1]
@@ -330,11 +359,9 @@ def getModelRunTasks(
             if not any(nodeTaskId in nodes for nodes in checklists.dbt_tasks_execution):
              checklists.dbt_tasks_execution.append(f"{nodeTaskId}")
 
-            if upstreamNode in baseModels:
-                print("in if")
+            if upstreamNode in usModels:
                 model=upstreamNode
             else:
-                print("pass")
                 pass
 
     
@@ -460,9 +487,6 @@ def generateDag(inputType: str, identifierName: str, **kwargs: Any):
             else:
                 pass
 
-
-
-    print("fizlar dbt tasks")
     dbt_tasks = []
     [dbt_tasks.append(x) for x in checklists.dbt_tasks if x not in dbt_tasks]
 
