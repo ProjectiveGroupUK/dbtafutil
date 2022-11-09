@@ -34,34 +34,38 @@ def genrateModelsDags (modelsList:list, **kwargs: Any) -> None:
             modelParents = True
             if re.findall('^\d+', model):
                 #need to convert to num
-                modelParentsDegree=re.findall('^\d+', model)[0]
-                print(modelParentsDegree)
-            else: modelParentsDegree = '*'
+                modelParentsDegree=re.findall('^[0-9]+', model)[0]
+            else: modelParentsDegree = '999999999'
+
+            model=re.findall("\+.*", model)[0][1:]
 
             #model should not have the +
             #print("here")
-            model=re.findall("\+.*", model)[0][1:]
-            print(model)   
+            #model=re.findall("\+.*", model)[0][1:]
+            #print(model)   
         
         
 
         # Ends with +
-        if re.search(".*(\+|[0-9]*)", model):
+        if re.search(".*(\+|\+[0-9]*)", model):
             print("get config of ends with +")
             print(re.findall('\+\d$', model))
             modelChildren = True
             if re.findall('\+\d$', model):
                 #need to convert to num
                 modelChildrenDegree=re.findall('\d$', model)[0]
-                print(modelChildrenDegree)
             else:
-                modelChildrenDegree='*'
+                modelChildrenDegree='999999999'
             
-            # model should not have the plus
-            print(re.findall(".*\+", model)[0])
             model=re.findall(".*\+", model)[0][:-1]
-            print(model)  
+            
+            #print('########')
+            # model should not have the plus
+            #print(re.findall(".*\+", model)[0])
+            #model=re.findall(".*\+", model)[0][:-1]
+            #print(model)  
 
+        
         modelName = model.strip() ##.lower()
         #generateDag(inputType="model", identifierName=modelName, **kwargs)
         generateDag(inputType="model", identifierName=modelName, modelParents=modelParents,modelChildren=modelChildren,modelParentsDegree=modelParentsDegree,modelChildrenDegree=modelChildrenDegree   )
