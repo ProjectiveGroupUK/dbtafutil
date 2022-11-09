@@ -52,24 +52,6 @@ def raw_osts_item_price_modifier():
             models="raw_osts_item_price_modifier_v"
             )
         
-        sale_transaction_item_discount_br_v = DbtRunOperator(
-            task_id="sale_transaction_item_discount_br_v",
-            dbt_bin=f"{os.path.dirname(os.path.dirname(os.path.abspath(__file__)))}/.local/bin/dbt",
-            profiles_dir=f"{os.path.dirname(os.path.abspath(__file__))}/dbt/",
-            dir=f"{os.path.dirname(os.path.abspath(__file__))}/dbt/",
-            target="dev",
-            models="sale_transaction_item_discount_br_v"
-            )
-        
-        raw_osts_trans_v = DbtRunOperator(
-            task_id="raw_osts_trans_v",
-            dbt_bin=f"{os.path.dirname(os.path.dirname(os.path.abspath(__file__)))}/.local/bin/dbt",
-            profiles_dir=f"{os.path.dirname(os.path.abspath(__file__))}/dbt/",
-            dir=f"{os.path.dirname(os.path.abspath(__file__))}/dbt/",
-            target="dev",
-            models="raw_osts_trans_v"
-            )
-        
         sale_transaction_item_price_modifier_stssls_link_v = DbtRunOperator(
             task_id="sale_transaction_item_price_modifier_stssls_link_v",
             dbt_bin=f"{os.path.dirname(os.path.dirname(os.path.abspath(__file__)))}/.local/bin/dbt",
@@ -77,15 +59,6 @@ def raw_osts_item_price_modifier():
             dir=f"{os.path.dirname(os.path.abspath(__file__))}/dbt/",
             target="dev",
             models="sale_transaction_item_price_modifier_stssls_link_v"
-            )
-        
-        sale_transaction_item_price_modifier_stssls_link = DbtRunOperator(
-            task_id="sale_transaction_item_price_modifier_stssls_link",
-            dbt_bin=f"{os.path.dirname(os.path.dirname(os.path.abspath(__file__)))}/.local/bin/dbt",
-            profiles_dir=f"{os.path.dirname(os.path.abspath(__file__))}/dbt/",
-            dir=f"{os.path.dirname(os.path.abspath(__file__))}/dbt/",
-            target="dev",
-            models="sale_transaction_item_price_modifier_stssls_link"
             )
         
         raw_osts_trans = DbtRunOperator(
@@ -97,6 +70,24 @@ def raw_osts_item_price_modifier():
             models="raw_osts_trans"
             )
         
+        sale_transaction_item_price_modifier_stssls_link = DbtRunOperator(
+            task_id="sale_transaction_item_price_modifier_stssls_link",
+            dbt_bin=f"{os.path.dirname(os.path.dirname(os.path.abspath(__file__)))}/.local/bin/dbt",
+            profiles_dir=f"{os.path.dirname(os.path.abspath(__file__))}/dbt/",
+            dir=f"{os.path.dirname(os.path.abspath(__file__))}/dbt/",
+            target="dev",
+            models="sale_transaction_item_price_modifier_stssls_link"
+            )
+        
+        sale_transaction_item_discount_br_v = DbtRunOperator(
+            task_id="sale_transaction_item_discount_br_v",
+            dbt_bin=f"{os.path.dirname(os.path.dirname(os.path.abspath(__file__)))}/.local/bin/dbt",
+            profiles_dir=f"{os.path.dirname(os.path.abspath(__file__))}/dbt/",
+            dir=f"{os.path.dirname(os.path.abspath(__file__))}/dbt/",
+            target="dev",
+            models="sale_transaction_item_discount_br_v"
+            )
+        
         sale_transaction_item_discount_br = DbtRunOperator(
             task_id="sale_transaction_item_discount_br",
             dbt_bin=f"{os.path.dirname(os.path.dirname(os.path.abspath(__file__)))}/.local/bin/dbt",
@@ -106,12 +97,21 @@ def raw_osts_item_price_modifier():
             models="sale_transaction_item_discount_br"
             )
         
+        raw_osts_trans_v = DbtRunOperator(
+            task_id="raw_osts_trans_v",
+            dbt_bin=f"{os.path.dirname(os.path.dirname(os.path.abspath(__file__)))}/.local/bin/dbt",
+            profiles_dir=f"{os.path.dirname(os.path.abspath(__file__))}/dbt/",
+            dir=f"{os.path.dirname(os.path.abspath(__file__))}/dbt/",
+            target="dev",
+            models="raw_osts_trans_v"
+            )
+        
         raw_osts_item_price_modifier_v >> raw_osts_item_price_modifier
         raw_osts_trans >> raw_osts_item_price_modifier_v
-        raw_osts_item_price_modifier >> sale_transaction_item_discount_br_v
         raw_osts_item_price_modifier >> sale_transaction_item_price_modifier_stssls_link_v
-        sale_transaction_item_price_modifier_stssls_link_v >> sale_transaction_item_price_modifier_stssls_link
         raw_osts_trans_v >> raw_osts_trans
+        sale_transaction_item_price_modifier_stssls_link_v >> sale_transaction_item_price_modifier_stssls_link
+        raw_osts_item_price_modifier >> sale_transaction_item_discount_br_v
         sale_transaction_item_discount_br_v >> sale_transaction_item_discount_br
     
     end = DummyOperator(

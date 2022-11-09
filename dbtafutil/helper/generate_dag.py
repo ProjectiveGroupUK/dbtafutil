@@ -150,7 +150,7 @@ def getTagRunTasks(
             manifestJson=manifestJson,
             tagName=tagName,
         ):
-            logger.info(f"Building airflow task for {upstreamNode}")
+            logger.info(f"Building airflow task for:: {upstreamNode}")
             upstream_task_id = upstreamNode.split(".")[-1]
 
             # if item is in list already (as just a base remove it) as it has dependencies.
@@ -196,86 +196,47 @@ def getModelRunTasks(
 ):
     logger.info(f"Building airflow tasks for {nodeName}") 
    
-    #taskDict, nodeTaskId = buildTaskDict(nodeName=nodeName, taskType="run")
-    #checklists.dbt_tasks.append(taskDict)
-    #checklists.model_checklist.append(nodeName)
-
-    # Repeat the previous step for nodes upstream of this one
-    # We add relevant nodes to our task list, and build Airflow dependency strings
-    # is there a plus ?
-
-    #If both then go to the lowest model and run through that.
-    
-    # Do we need to get Parents of Model?
-    index = 1
-    usModels=set([]) #upstream models.
-    if modelParents:       
-        n=1 
-        nodeToCheck:list=nodeName.split()
-        while n > 0:
-            if not nodeToCheck:
-                n=0
-            parentIsModel=False
-            for node in nodeToCheck:
-                if node.split(".")[0] == "model":
-                    parentNode= manifestJson["parent_map"][node]
-                    for parent in parentNode:
-                        if parent.split(".")[0] == "model":
-                            usModels.add(parent)
-                            parentIsModel=True
-                    nodeToCheck=parentNode
-
-                    #Iterate loop index if found at least one child model
-                    if parentIsModel:
-                        if int(modelParentsDegree) == index:
-                            n=0
-                        else: 
-                            index +=1
-
-                else:
-                    n=0   
+    # For Model we now need to determine if we need to get Parents, Children or both (depending on input parameter)
+    degreeDict = {}
+    if modelParents : degreeDict['parent'] = modelParentsDegree
+    if modelChildren: degreeDict['child']= modelChildrenDegree
 
 
-    # Do we need to get Children of Model?
-    ###we are here fizlar is it because it is a shared model?
-    index = 1
-    dsModels=set([]) #downstream models.
-    if modelChildren:       
-        n=1 
-        nodeToCheck:list=nodeName.split()
-        while n > 0:
-            if not nodeToCheck:
-                n=0
-            childIsModel=False
-            for node in nodeToCheck:                
-                if node.split(".")[0] == "model":
-                    childrenNode= manifestJson["child_map"][node]
+    allModels=set([]) #upstream models.
+    if degreeDict:
+        for degree , degreeValue in degreeDict.items():
+            index = 1
+            nodeToCheck:list=nodeName.split()
+            n=1 
+            while n > 0:
+                if not nodeToCheck:
+                    n=0
+                IsModel=False
+                for node in nodeToCheck:
+                    if node.split(".")[0] == "model":
+                        familyNode= manifestJson[f"{degree}_map"][node]
+                        for family in familyNode:
+                            if family.split(".")[0] == "model":
+                                allModels.add(family)
+                                IsModel=True
+                        nodeToCheck=familyNode
 
-                    for children in childrenNode:
-                        if children.split(".")[0] == "model":
-                            dsModels.add(children)
-                            childIsModel=True
-                    nodeToCheck=childrenNode
+                        #Iterate loop index if found at least one child model
+                        if IsModel:
+                            if int(degreeValue) == index:
+                                n=0
+                            else: 
+                                index +=1
+                    else:
+                        n=0 
 
 
-                    #Iterate loop index if found at least one child model
-                    if childIsModel:
-                        if int(modelChildrenDegree) == index:
-                            n=0
-                        else: 
-                            index +=1
-                else:
-                    n=0          
-
-    allModels=usModels.union(dsModels)
     if not len(allModels):
-        allModels=nodeName
+        allModels=[nodeName]
     else:
         allModels=list(allModels)
         allModels.insert(0,nodeName)
-
-    dsModels=allModels    
-
+    
     for allModel in allModels:
         logger.info(f"Building airflow tasks for {allModel}")
         taskDict, nodeTaskId = buildTaskDict(nodeName=allModel, taskType="run")
@@ -284,8 +245,7 @@ def getModelRunTasks(
 
         # Repeat the previous step for nodes upstream of this one
         # We add relevant nodes to our task list, and build Airflow dependency strings
-        upstreamNode: str
-    
+        upstreamNode: str  
 
         for upstreamNode in set(manifestJson["nodes"][allModel]["depends_on"]["nodes"]):
             if checkNodeInManifest(
@@ -297,7 +257,7 @@ def getModelRunTasks(
                     #iterate
                     continue
 
-                logger.info(f"Building airflow task for {upstreamNode}")
+                logger.info(f"Building airflow task for: {upstreamNode}")
                 upstream_task_id = upstreamNode.split(".")[-1]
 
                 # if item is in list already (as just a base remove it) as it has dependencies.
