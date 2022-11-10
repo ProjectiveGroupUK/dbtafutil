@@ -26,9 +26,11 @@ def genrateModelsDags (modelsList:list, **kwargs: Any) -> None:
 
         # Starts with +
         if re.search("^([0-9]+|\+).*", model):
+            logger.info(f"Model has parent + parameter at beginning of Model")
             modelParents = True
             if re.findall('^\d+', model):
                 #need to convert to num
+                logger.info(f"Model has Parent number parameter at beginning of + symbol")
                 modelParentsDegree=re.findall('^[0-9]+', model)[0]
             else: modelParentsDegree = '999999999'
 
@@ -36,8 +38,10 @@ def genrateModelsDags (modelsList:list, **kwargs: Any) -> None:
         
         # Ends with +
         if re.search(".*(\+|\+[0-9]*)", model):
+            logger.info(f"Model has child + parameter at end of Model")
             modelChildren = True
             if re.findall('\+\d$', model):
+                logger.info(f"Model has child number parameter at end of + symbol")
                 modelChildrenDegree=re.findall('\d$', model)[0]
             else:
                 modelChildrenDegree='999999999'

@@ -194,7 +194,7 @@ def getModelRunTasks(
     checklists: DbtChecklists,
     nodeName: str,
 ):
-    logger.info(f"Building airflow tasks for {nodeName}") 
+    logger.info(f"Building airflow tasks for model: {nodeName}") 
    
     # For Model we now need to determine if we need to get Parents, Children or both (depending on input parameter)
     degreeDict = {}
@@ -202,7 +202,8 @@ def getModelRunTasks(
     if modelChildren: degreeDict['child']= modelChildrenDegree
 
 
-    allModels=set([]) #upstream models.
+    allModels=set([]) 
+    logger.info(f"Getting Upstream/Downstram Nodes for Model: {nodeName}") 
     if degreeDict:
         for degree , degreeValue in degreeDict.items():
             index = 1
@@ -238,7 +239,7 @@ def getModelRunTasks(
         allModels.insert(0,nodeName)
     
     for allModel in allModels:
-        logger.info(f"Building airflow tasks for {allModel}")
+        logger.info(f"Building airflow tasks for Model:  {allModel}")
         taskDict, nodeTaskId = buildTaskDict(nodeName=allModel, taskType="run")
         checklists.dbt_tasks.append(taskDict)
         checklists.model_checklist.append(allModel)
@@ -302,6 +303,7 @@ def generateDag(inputType: str, identifierName: str, **kwargs: Any):
         nodeType = nodeName.split(".")[0]
 
         if inputType == "tag":
+            logger.info(f"Input type type is Tag..")
             if checkNodeInManifest(
                 manifestJson=manifestJson,
                 tagName=identifierName,
@@ -330,14 +332,8 @@ def generateDag(inputType: str, identifierName: str, **kwargs: Any):
             else: 
                 pass
         else:
-            # input type is model
-            #print("in model part")
-            #print(nodeType)
             if (nodeType == "model") and (nodeName.split(".")[-1] == identifierName):
-                print("node type is model")
-                print(identifierName)
-                print(nodeName)
-                print("CheckNodeInManifest Passed")
+                logger.info(f"Input type type is Model..")
                 checklists = getModelRunTasks(
                 modelName=identifierName,
                 modelParents=kwargs["modelParents"],
@@ -348,9 +344,6 @@ def generateDag(inputType: str, identifierName: str, **kwargs: Any):
                 checklists=checklists,
                 nodeName=nodeName,
                 )
-                    
-                #if nodeName == 'model.kiwi_dbt.promotion_rep':
-                    #exit(0)
             else:
                 pass
 
