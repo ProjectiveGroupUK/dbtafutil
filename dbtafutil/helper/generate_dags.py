@@ -2,6 +2,7 @@ from typing import Any
 import logging
 from pathlib import Path
 from dbtafutil.helper.generate_dag import generateDag
+import re
 
 from dbtafutil.utils.logger import Logger
 from dbtafutil.utils.utils import Globals
@@ -17,8 +18,39 @@ def genrateModelsDags (modelsList:list, **kwargs: Any) -> None:
     """
     for model in modelsList:
         logger.info(f"Generating dag for model: {model}")
+        #set variables here
+        modelParents:bool=False
+        modelChildren:bool=False
+        modelParentsDegree=None
+        modelChildrenDegree=None
+
+        # Starts with +
+        if re.search("^([0-9]+|\+).*", model):
+            logger.info(f"Model has parent + parameter at beginning of Model")
+            modelParents = True
+            if re.findall('^\d+', model):
+                #need to convert to num
+                logger.info(f"Model has Parent number parameter at beginning of + symbol")
+                modelParentsDegree=re.findall('^[0-9]+', model)[0]
+            else: modelParentsDegree = '999999999'
+
+            model=re.findall("\+.*", model)[0][1:]       
+        
+        # Ends with +
+        if re.search(".*(\+|\+[0-9]*)", model):
+            logger.info(f"Model has child + parameter at end of Model")
+            modelChildren = True
+            if re.findall('\+\d$', model):
+                logger.info(f"Model has child number parameter at end of + symbol")
+                modelChildrenDegree=re.findall('\d$', model)[0]
+            else:
+                modelChildrenDegree='999999999'
+            
+            model=re.findall(".*\+", model)[0][:-1]
+        
         modelName = model.strip() ##.lower()
-        generateDag(inputType="model", identifierName=modelName, **kwargs)
+        generateDag(inputType="model", identifierName=modelName, modelParents=modelParents,modelChildren=modelChildren,modelParentsDegree=modelParentsDegree,modelChildrenDegree=modelChildrenDegree, **kwargs   )
+        
 
     return
     

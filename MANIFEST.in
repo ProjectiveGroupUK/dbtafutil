@@ -1,1 +1,1 @@
-recursive-include *.py *.sql *.yml *.html *.md *.toml .gitkeep .gitignore jinja_templates *.jinja2
+recursive-include *.py *.sql *.yml *.html *.md *.toml .gitkeep .gitignore

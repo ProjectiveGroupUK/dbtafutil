@@ -2,6 +2,7 @@ import os
 from typing import Any, Dict, List, Tuple, Optional
 import json
 import logging
+import re
 from pathlib import Path
 from dbtafutil.utils.jinja_templates import render_jinja_template, DBT_DAG_TEMPLATE
 
@@ -47,12 +48,15 @@ def checkNodeInManifest(
     nodeName: str,
     manifestJson: Dict[str, Any],
     tagName: Optional[str] = None,
+    modelName: Optional[str] = None,
 ) -> bool:
-    logger.debug("Inside checkNodeInManifest")
-    logger.debug(f"nodeName: {nodeName}")
-    logger.debug(f"tagName: {tagName}")
+    logger.info("Inside checkNodeInManifest")
+    logger.info(f"nodeName: {nodeName}")
+    logger.info(f"tagName: {tagName}")
+    logger.info(f"modelName: {modelName}")
     """Check if a node in the manifest file should be included in the set."""
     # Only include model nodes
+    rtn_val:bool = True
     if nodeName.split(".")[0] != "model":
         return False
     try:
@@ -65,14 +69,18 @@ def checkNodeInManifest(
         raise KeyError(
             f"Given node name {nodeName} is not present in manifest json nodes block"
         ) from e
-    try:
-        tags = node["tags"]
-    except KeyError as e:
-        raise KeyError(
-            f"The tags section of the `{nodeName}` node could not be found in manifest file."
-        ) from e
+    if tagName:
+        try:
+            tags = node["tags"]
+            return tagName is None or tagName in tags
+        except KeyError as e:
+            raise KeyError(
+                f"The tags section of the `{nodeName}` node could not be found in manifest file."
+            ) from e
+        
+   
         # Only include if the tag is specified in the configuration
-    return tagName is None or tagName in tags
+    return rtn_val
 
 
 def loadManifest():
@@ -134,13 +142,15 @@ def getTagRunTasks(
     # We add relevant nodes to our task list, and build Airflow dependency strings
     upstreamNode: str
     # upstreamCount: int = 0
+    
+
     for upstreamNode in set(manifestJson["nodes"][nodeName]["depends_on"]["nodes"]):
         if checkNodeInManifest(
             nodeName=upstreamNode,
             manifestJson=manifestJson,
             tagName=tagName,
         ):
-            logger.info(f"Building airflow task for {upstreamNode}")
+            logger.info(f"Building airflow task for:: {upstreamNode}")
             upstream_task_id = upstreamNode.split(".")[-1]
 
             # if item is in list already (as just a base remove it) as it has dependencies.
@@ -151,6 +161,7 @@ def getTagRunTasks(
 
             # Build the airflow dependency string and add it to the execution list
             checklists.dbt_tasks_execution.append(f"{upstream_task_id} >> {nodeTaskId}")
+                                               
 
     # if upstreamCount == 0:
     #     checklists.dbt_tasks_execution.append(f"{nodeTaskId}")
@@ -172,12 +183,138 @@ def getTestTasks(checklists: DbtChecklists, nodeName: str, baseNode: str):
 
     return checklists
 
+## fizlar new def required
+def getModelRunTasks(
+    modelName: str,
+    modelParents:bool,
+    modelChildren:bool,
+    modelParentsDegree:str,
+    modelChildrenDegree:str,
+    manifestJson: Dict[str, Any],
+    checklists: DbtChecklists,
+    nodeName: str,
+    **kwargs: Any
+):
+    logger.info(f"Building airflow tasks for model: {nodeName}") 
+   
+    # For Model we now need to determine if we need to get Parents, Children or both (depending on input parameter)
+    degreeDict = {}
+    if modelParents : degreeDict['parent'] = modelParentsDegree
+    if modelChildren: degreeDict['child']= modelChildrenDegree
+
+
+    allModels=set([]) 
+    logger.info(f"Getting Upstream/Downstram Nodes for Model: {nodeName}") 
+    if degreeDict:
+        for degree , degreeValue in degreeDict.items():
+            index = 1
+            nodeToCheck:list=nodeName.split()
+            n=1 
+            while n > 0:
+                if not nodeToCheck:
+                    n=0
+                IsModel=False
+                for node in nodeToCheck:
+                    if node.split(".")[0] in ("model", "test"):
+                        familyNode= manifestJson[f"{degree}_map"][node]
+                        for family in familyNode:
+                            if family.split(".")[0] in ("model", "test"):
+                                allModels.add(family)
+                                IsModel=True
+                        nodeToCheck=familyNode
+
+                        #Iterate loop index if found at least one child model
+                        if IsModel:
+                            if int(degreeValue) == index:
+                                n=0
+                            else: 
+                                index +=1
+                    else:
+                        n=0 
+
+
+    if not len(allModels):
+        allModels=[nodeName]
+    else:
+        allModels=list(allModels)
+        allModels.insert(0,nodeName)
+    
+    for allModel in allModels:
+        logger.info(f"Building airflow tasks for Model:  {allModel}")
+        
+        
+
+        # Repeat the previous step for nodes upstream of this one
+        # We add relevant nodes to our task list, and build Airflow dependency strings
+        upstreamNode: str  
+        nodeType = allModel.split(".")[0]
+        ##if this is run need to change tasktype
+        if nodeType == 'test':
+            taskType='test'
+        else:
+            taskType='run'
+        
+        taskDict, nodeTaskId = buildTaskDict(nodeName=allModel, taskType=taskType)
+        checklists.dbt_tasks.append(taskDict)
+        checklists.model_checklist.append(allModel)
+
+        for upstreamNode in set(manifestJson["nodes"][allModel]["depends_on"]["nodes"]):
+            if checkNodeInManifest(
+                nodeName=upstreamNode,
+                manifestJson=manifestJson,
+            ):                
+                #Need to check if upstream task is for this model path 
+                print("he34 we go!")
+                print(nodeType)
+                if upstreamNode not in allModels:
+                    #iterate
+                    continue
+                #If test and told to skip iterate!
+                elif (nodeType == "test") and (not kwargs.get("skip_tests")):
+                    #iterate
+                    checklists = getTestTasks(
+                            checklists=checklists, 
+                            nodeName=upstreamNode,
+                            baseNode=allModels,
+                    )
+                    nodeTaskId=f'test_{nodeTaskId}'
+                    #continue # this is not right to me!!!!
+                elif (nodeType == "test") and ( kwargs.get("skip_tests")):
+                    continue
+                
+                if nodeType == "test":
+                    print("this is a test")
+                    print(allModel)
+
+                logger.info(f"Building airflow task for: {upstreamNode}")
+                upstream_task_id = upstreamNode.split(".")[-1]
+
+                # if item is in list already (as just a base remove it) as it has dependencies.
+                if upstream_task_id in checklists.dbt_tasks_execution:
+                    print("removing record")
+                    checklists.dbt_tasks_execution.remove(upstream_task_id)
+
+            # upstreamCount += 1
+
+                # Build the airflow dependency string and add it to the execution list
+                print(f"this is what you are appending: {upstream_task_id} >> {nodeTaskId}")
+                checklists.dbt_tasks_execution.append(f"{upstream_task_id} >> {nodeTaskId}")
+                                               
+
+    # if upstreamCount == 0:
+    #     checklists.dbt_tasks_execution.append(f"{nodeTaskId}")
+        if not any(nodeTaskId in nodes for nodes in checklists.dbt_tasks_execution):
+            checklists.dbt_tasks_execution.append(f"{nodeTaskId}")
+    
+    return checklists
 
 def generateDag(inputType: str, identifierName: str, **kwargs: Any):
-    logger.debug("Inside genrateModelsDags")
-    logger.debug(f"inputType = {inputType}")
-    logger.debug(f"identifierName = {identifierName}")
-    logger.debug(f"kwargs = {kwargs}")
+    logger.info("Inside genrateModelsDags")
+    logger.info(f"inputType = {inputType}")
+    logger.info(f"identifierName = {identifierName}")
+    logger.info(f"kwargs = {kwargs}")
+    
+
     # Type checking
     if inputType not in ("model", "tag"):
         raise TypeError("Incorrect value for input type")
@@ -191,20 +328,22 @@ def generateDag(inputType: str, identifierName: str, **kwargs: Any):
 
     logger.info(f"Checking manifest file nodes for models..")
     manifestJson = loadManifest()
-    if inputType == "tag":
-        for nodeName in manifestJson["nodes"].keys():
-            nodeType = nodeName.split(".")[0]
+    
+    for nodeName in manifestJson["nodes"].keys():
+        nodeType = nodeName.split(".")[0]
+
+        if inputType == "tag":
+            logger.info(f"Input type type is Tag..")
             if checkNodeInManifest(
                 manifestJson=manifestJson,
                 tagName=identifierName,
-                nodeName=nodeName,
-            ):
-                checklists = getTagRunTasks(
+                nodeName=nodeName,):
+                    checklists = getTagRunTasks(
                     tagName=identifierName,
                     manifestJson=manifestJson,
                     checklists=checklists,
                     nodeName=nodeName,
-                )
+                    )
 
             elif (nodeType == "test") and (not kwargs["skip_tests"]):
                 for upstreamNode in set(
@@ -220,7 +359,21 @@ def generateDag(inputType: str, identifierName: str, **kwargs: Any):
                             nodeName=upstreamNode,
                             baseNode=nodeName,
                         )
-
+            else: 
+                pass
+        else:
+            if (nodeType == "model") and (nodeName.split(".")[-1] == identifierName):
+                logger.info(f"Input type type is Model..")
+                checklists = getModelRunTasks(
+                modelName=identifierName,
+                modelParents=kwargs["modelParents"],
+                modelChildren=kwargs["modelChildren"],
+                modelParentsDegree=kwargs["modelParentsDegree"],
+                modelChildrenDegree=kwargs["modelChildrenDegree"],
+                manifestJson=manifestJson,
+                checklists=checklists,
+                nodeName=nodeName,
+                )
             else:
                 pass
 
