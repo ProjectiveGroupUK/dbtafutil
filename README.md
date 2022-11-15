@@ -7,6 +7,8 @@ This package consists of Airflow utilities that you can use with your dbt projec
 
 ## Utilities:
 ### 1. Generate Airflow DAGs
-...This utility can help with generating Airflow DAGs out from dbt project. Further details about this utility are given down below in the document
+...This utility can help with generating Airflow DAGs out from dbt project. Further details [here](#1-generate-airflow-dags) about this utility are given down below in the document
+
+### 2. Hello
 
 
