@@ -10,6 +10,7 @@ This package consists of Airflow utilities that you can use with your dbt projec
 ...This utility can help with generating Airflow DAGs out from dbt project. Further details about this utility are given down [below](#generate-airflow-dag-utility-gendag) in the document
 
 
-## Generate Airflow DAG Utility (gendag)
+Generate Airflow DAG Utility (gendag):
+===
 
 
