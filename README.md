@@ -1,2 +1,7 @@
 # dbtafutil
-dbt Airflow Utility Package
+Utility Package for dbt -> Airflow
+
+Introduction:
+=============
+
+
