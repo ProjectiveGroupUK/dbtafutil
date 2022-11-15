@@ -49,7 +49,7 @@ def genrateModelsDags (modelsList:list, **kwargs: Any) -> None:
             model=re.findall(".*\+", model)[0][:-1]
         
         modelName = model.strip() ##.lower()
-        generateDag(inputType="model", identifierName=modelName, modelParents=modelParents,modelChildren=modelChildren,modelParentsDegree=modelParentsDegree,modelChildrenDegree=modelChildrenDegree   )
+        generateDag(inputType="model", identifierName=modelName, modelParents=modelParents,modelChildren=modelChildren,modelParentsDegree=modelParentsDegree,modelChildrenDegree=modelChildrenDegree, **kwargs   )
         
 
     return

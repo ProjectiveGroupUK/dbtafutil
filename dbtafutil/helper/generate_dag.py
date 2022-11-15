@@ -193,6 +193,7 @@ def getModelRunTasks(
     manifestJson: Dict[str, Any],
     checklists: DbtChecklists,
     nodeName: str,
+    **kwargs: Any
 ):
     logger.info(f"Building airflow tasks for model: {nodeName}") 
    
@@ -214,10 +215,10 @@ def getModelRunTasks(
                     n=0
                 IsModel=False
                 for node in nodeToCheck:
-                    if node.split(".")[0] == "model":
+                    if node.split(".")[0] in ("model", "test"):
                         familyNode= manifestJson[f"{degree}_map"][node]
                         for family in familyNode:
-                            if family.split(".")[0] == "model":
+                            if family.split(".")[0] in ("model", "test"):
                                 allModels.add(family)
                                 IsModel=True
                         nodeToCheck=familyNode
@@ -240,13 +241,22 @@ def getModelRunTasks(
     
     for allModel in allModels:
         logger.info(f"Building airflow tasks for Model:  {allModel}")
-        taskDict, nodeTaskId = buildTaskDict(nodeName=allModel, taskType="run")
-        checklists.dbt_tasks.append(taskDict)
-        checklists.model_checklist.append(allModel)
+        
+        
 
         # Repeat the previous step for nodes upstream of this one
         # We add relevant nodes to our task list, and build Airflow dependency strings
         upstreamNode: str  
+        nodeType = allModel.split(".")[0]
+        ##if this is run need to change tasktype
+        if nodeType == 'test':
+            taskType='test'
+        else:
+            taskType='run'
+        
+        taskDict, nodeTaskId = buildTaskDict(nodeName=allModel, taskType=taskType)
+        checklists.dbt_tasks.append(taskDict)
+        checklists.model_checklist.append(allModel)
 
         for upstreamNode in set(manifestJson["nodes"][allModel]["depends_on"]["nodes"]):
             if checkNodeInManifest(
@@ -254,20 +264,40 @@ def getModelRunTasks(
                 manifestJson=manifestJson,
             ):                
                 #Need to check if upstream task is for this model path 
+                print("he34 we go!")
+                print(nodeType)
                 if upstreamNode not in allModels:
                     #iterate
                     continue
+                #If test and told to skip iterate!
+                elif (nodeType == "test") and (not kwargs.get("skip_tests")):
+                    #iterate
+                    checklists = getTestTasks(
+                            checklists=checklists, 
+                            nodeName=upstreamNode,
+                            baseNode=allModels,
+                    )
+                    nodeTaskId=f'test_{nodeTaskId}'
+                    #continue # this is not right to me!!!!
+                elif (nodeType == "test") and ( kwargs.get("skip_tests")):
+                    continue
+                
+                if nodeType == "test":
+                    print("this is a test")
+                    print(allModel)
 
                 logger.info(f"Building airflow task for: {upstreamNode}")
                 upstream_task_id = upstreamNode.split(".")[-1]
 
                 # if item is in list already (as just a base remove it) as it has dependencies.
                 if upstream_task_id in checklists.dbt_tasks_execution:
+                    print("removing record")
                     checklists.dbt_tasks_execution.remove(upstream_task_id)
 
             # upstreamCount += 1
 
                 # Build the airflow dependency string and add it to the execution list
+                print(f"this is what you are appending: {upstream_task_id} >> {nodeTaskId}")
                 checklists.dbt_tasks_execution.append(f"{upstream_task_id} >> {nodeTaskId}")
                                                
 
