@@ -73,7 +73,8 @@ def {{ dag_name.lower() }}():
             profiles_dir=f"{os.path.dirname(os.path.abspath(__file__))}/dbt/",
             dir=f"{os.path.dirname(os.path.abspath(__file__))}/dbt/",
             target="dev",
-            models="{{ task['dbt_model'] }}"
+            #models="{{ task['dbt_model'] }}"
+            select="{{ task['dbt_model'] }}"
             )
             {%- endif %}
         {% endfor %}

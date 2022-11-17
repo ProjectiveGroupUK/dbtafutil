@@ -126,7 +126,7 @@ def buildTaskDict(nodeName: str, taskType: str) -> Tuple[Dict[str, str], str]:
 
     return task_dict, node_task_id
 
-
+#need to get tests here?
 def getTagRunTasks(
     tagName: str,
     manifestJson: Dict[str, Any],
@@ -143,7 +143,6 @@ def getTagRunTasks(
     upstreamNode: str
     # upstreamCount: int = 0
     
-
     for upstreamNode in set(manifestJson["nodes"][nodeName]["depends_on"]["nodes"]):
         if checkNodeInManifest(
             nodeName=upstreamNode,
@@ -232,17 +231,16 @@ def getModelRunTasks(
                     else:
                         n=0 
 
-
     if not len(allModels):
         allModels=[nodeName]
     else:
         allModels=list(allModels)
         allModels.insert(0,nodeName)
     
+    testTaskDictCheck=[]
+
     for allModel in allModels:
         logger.info(f"Building airflow tasks for Model:  {allModel}")
-        
-        
 
         # Repeat the previous step for nodes upstream of this one
         # We add relevant nodes to our task list, and build Airflow dependency strings
@@ -253,10 +251,9 @@ def getModelRunTasks(
             taskType='test'
         else:
             taskType='run'
-        
-        taskDict, nodeTaskId = buildTaskDict(nodeName=allModel, taskType=taskType)
-        checklists.dbt_tasks.append(taskDict)
-        checklists.model_checklist.append(allModel)
+            taskDict, nodeTaskId = buildTaskDict(nodeName=allModel, taskType=taskType)
+            checklists.dbt_tasks.append(taskDict)
+            checklists.model_checklist.append(allModel)
 
         for upstreamNode in set(manifestJson["nodes"][allModel]["depends_on"]["nodes"]):
             if checkNodeInManifest(
@@ -264,28 +261,33 @@ def getModelRunTasks(
                 manifestJson=manifestJson,
             ):                
                 #Need to check if upstream task is for this model path 
-                print("he34 we go!")
-                print(nodeType)
                 if upstreamNode not in allModels:
                     #iterate
                     continue
                 #If test and told to skip iterate!
                 elif (nodeType == "test") and (not kwargs.get("skip_tests")):
-                    #iterate
-                    checklists = getTestTasks(
-                            checklists=checklists, 
-                            nodeName=upstreamNode,
-                            baseNode=allModels,
-                    )
-                    nodeTaskId=f'test_{nodeTaskId}'
-                    #continue # this is not right to me!!!!
+                    # need to check if model has had test created for it 
+                    # if so can iterate
+                    if upstreamNode in testTaskDictCheck:
+                        #As tests are being done on the model if there are multiple one they will be already handled in the call
+                        #In this case where a multi test has been fine we can skip this loop as its been handled previously
+                        #iterate
+                        continue
+                    else:
+                        taskDict, nodeTaskId = buildTaskDict(nodeName=upstreamNode, taskType=taskType)
+                        checklists.dbt_tasks.append(taskDict)
+                        checklists.model_checklist.append(allModel)
+                  
+                        checklists = getTestTasks(
+                                checklists=checklists, 
+                                nodeName=upstreamNode,
+                                baseNode=upstreamNode,
+                        )
+                        nodeTaskId=f'test_{nodeTaskId}'
+                        testTaskDictCheck.append(upstreamNode)
                 elif (nodeType == "test") and ( kwargs.get("skip_tests")):
                     continue
                 
-                if nodeType == "test":
-                    print("this is a test")
-                    print(allModel)
-
                 logger.info(f"Building airflow task for: {upstreamNode}")
                 upstream_task_id = upstreamNode.split(".")[-1]
 
@@ -331,7 +333,6 @@ def generateDag(inputType: str, identifierName: str, **kwargs: Any):
     
     for nodeName in manifestJson["nodes"].keys():
         nodeType = nodeName.split(".")[0]
-
         if inputType == "tag":
             logger.info(f"Input type type is Tag..")
             if checkNodeInManifest(
@@ -378,6 +379,7 @@ def generateDag(inputType: str, identifierName: str, **kwargs: Any):
                 pass
 
     dbt_tasks = []
+    # if not in task append!
     [dbt_tasks.append(x) for x in checklists.dbt_tasks if x not in dbt_tasks]
 
     dbt_tasks_execution = []
