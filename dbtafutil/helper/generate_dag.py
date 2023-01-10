@@ -198,12 +198,19 @@ def getModelRunTasks(
    
     # For Model we now need to determine if we need to get Parents, Children or both (depending on input parameter)
     degreeDict = {}
-    if modelParents : degreeDict['parent'] = modelParentsDegree
+    if modelParents: degreeDict['parent'] = modelParentsDegree
     if modelChildren: degreeDict['child']= modelChildrenDegree
-
+    
+    if not degreeDict and not skip_tests:
+        logger.info(f"One Model Selected. Config to retrieve Child tests for model") 
+        degreeDict['child']=1
+        testsChildOnly=True
+    else:
+        testsChildOnly=False
 
     allModels=set([]) 
     logger.info(f"Getting Upstream/Downstram Nodes for Model: {nodeName}") 
+
     if degreeDict:
         for degree , degreeValue in degreeDict.items():
             index = 1
@@ -218,8 +225,13 @@ def getModelRunTasks(
                         familyNode= manifestJson[f"{degree}_map"][node]
                         for family in familyNode:
                             if family.split(".")[0] in ("model", "test"):
-                                allModels.add(family)
                                 IsModel=True
+                                if testsChildOnly:
+                                    if family.split(".")[0] == "test":
+                                        allModels.add(family)
+                                else:
+                                    allModels.add(family)
+                                    
                         nodeToCheck=familyNode
 
                         #Iterate loop index if found at least one child model
