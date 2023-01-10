@@ -192,7 +192,7 @@ def getModelRunTasks(
     manifestJson: Dict[str, Any],
     checklists: DbtChecklists,
     nodeName: str,
-    **kwargs: Any
+    skip_tests: bool
 ):
     logger.info(f"Building airflow tasks for model: {nodeName}") 
    
@@ -261,11 +261,13 @@ def getModelRunTasks(
                 manifestJson=manifestJson,
             ):                
                 #Need to check if upstream task is for this model path 
+                print(f"nodeType: {nodeType}")
+
                 if upstreamNode not in allModels:
                     #iterate
                     continue
-                #If test and told to skip iterate!
-                elif (nodeType == "test") and (not kwargs.get("skip_tests")):
+                #If test and told to skip iterate!  
+                elif (nodeType == "test") and (not skip_tests):
                     # need to check if model has had test created for it 
                     # if so can iterate
                     if upstreamNode in testTaskDictCheck:
@@ -285,7 +287,7 @@ def getModelRunTasks(
                         )
                         nodeTaskId=f'test_{nodeTaskId}'
                         testTaskDictCheck.append(upstreamNode)
-                elif (nodeType == "test") and ( kwargs.get("skip_tests")):
+                elif (nodeType == "test") and (skip_tests):
                     continue
                 
                 logger.info(f"Building airflow task for: {upstreamNode}")
@@ -374,6 +376,7 @@ def generateDag(inputType: str, identifierName: str, **kwargs: Any):
                 manifestJson=manifestJson,
                 checklists=checklists,
                 nodeName=nodeName,
+                skip_tests=kwargs["skip_tests"],
                 )
             else:
                 pass
