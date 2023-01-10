@@ -273,7 +273,7 @@ def getModelRunTasks(
                 manifestJson=manifestJson,
             ):                
                 #Need to check if upstream task is for this model path 
-                print(f"nodeType: {nodeType}")
+                # print(f"nodeType: {nodeType}")
 
                 if upstreamNode not in allModels:
                     #iterate
@@ -307,13 +307,13 @@ def getModelRunTasks(
 
                 # if item is in list already (as just a base remove it) as it has dependencies.
                 if upstream_task_id in checklists.dbt_tasks_execution:
-                    print("removing record")
+                    # print("removing record")
                     checklists.dbt_tasks_execution.remove(upstream_task_id)
 
             # upstreamCount += 1
 
                 # Build the airflow dependency string and add it to the execution list
-                print(f"this is what you are appending: {upstream_task_id} >> {nodeTaskId}")
+                # print(f"this is what you are appending: {upstream_task_id} >> {nodeTaskId}")
                 checklists.dbt_tasks_execution.append(f"{upstream_task_id} >> {nodeTaskId}")
                                                
 
